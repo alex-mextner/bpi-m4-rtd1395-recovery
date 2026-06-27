@@ -1,0 +1,26 @@
+# Fix for: board drops to (initramfs) with root=/dev/mmcblk1p2 does not exist.
+#
+# Cause: a corrupted SAVED U-Boot environment in flash overrides the correct
+# uEnv.txt on the SD card. Editing files on the card does NOT help — the stale
+# saved env wins. The fix is to reset U-Boot's environment to factory defaults.
+#
+# How to use:
+#   1. Connect USB-TTL UART to the 3-pin debug header (115200 8N1).
+#   2. Power the board and INTERRUPT autoboot: press Esc or Tab during countdown.
+#   3. At the U-Boot prompt, paste the three commands below.
+#
+# This restores the factory env, which correctly imports uEnv.txt -> mmcblk0p2,
+# and the board then boots unattended on every power cycle.
+
+env default -a
+saveenv
+reset
+
+# ---------------------------------------------------------------------------
+# Emergency limp-in (boot ONCE without fixing the env): at the (initramfs)
+# prompt, create the missing node aliasing the SD's p2 (major:minor 179:34),
+# then exit so init resumes. Does NOT survive a power cycle — use the fix above
+# for a permanent solution.
+#
+#   mknod /dev/mmcblk1p2 b 179 34
+#   exit
