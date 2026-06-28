@@ -1,26 +1,34 @@
-# Fix for: board drops to (initramfs) with root=/dev/mmcblk1p2 does not exist.
+# When to use this: the kernel booted but dropped to (initramfs) with
+#   ALERT! /dev/mmcblk1p2 does not exist
+# and /proc/cmdline shows root=/dev/mmcblk1p2.
 #
-# Cause: a corrupted SAVED U-Boot environment in flash overrides the correct
-# uEnv.txt on the SD card. Editing files on the card does NOT help — the stale
-# saved env wins. The fix is to reset U-Boot's environment to factory defaults.
+# FIRST verify the cause -- do NOT assume a corrupted saved env. Interrupt autoboot
+# over UART (115200 8N1; press Esc/Tab during the countdown) and run:
 #
-# How to use:
-#   1. Connect USB-TTL UART to the 3-pin debug header (115200 8N1).
-#   2. Power the board and INTERRUPT autoboot: press Esc or Tab during countdown.
-#   3. At the U-Boot prompt, paste the three commands below.
+#   printenv root
 #
-# This restores the factory env, which correctly imports uEnv.txt -> mmcblk0p2,
-# and the board then boots unattended on every power cycle.
+#  - If it already shows /dev/mmcblk0p2 (correct): the mmcblk1p2 was an initramfs
+#    device-alias artifact / a device-renumber issue, NOT a bad env. Resetting the
+#    env fixes nothing here -- see README section 7 (use root=UUID=, and check whether
+#    the SD is actually present at boot). This was the real situation on the reference
+#    board: the "corrupted saved env" was a red herring.
+#  - If it really shows /dev/mmcblk1p2: THEN you have a genuinely corrupted saved
+#    environment overriding the correct uEnv.txt (a real failure mode on other units).
+#    Reset it to factory defaults with the three commands below.
+#
+# Reset a genuinely-corrupted saved env (ONLY after printenv root confirms it):
 
 env default -a
 saveenv
 reset
 
+# This restores the factory env, which correctly imports uEnv.txt, and the board
+# then boots unattended on every power cycle.
+#
 # ---------------------------------------------------------------------------
-# Emergency limp-in (boot ONCE without fixing the env): at the (initramfs)
+# Emergency limp-in (boot ONCE without fixing anything): at the (initramfs)
 # prompt, create the missing node aliasing the SD's p2 (major:minor 179:34),
-# then exit so init resumes. Does NOT survive a power cycle — use the fix above
-# for a permanent solution.
+# then exit so init resumes. Does NOT survive a power cycle.
 #
 #   mknod /dev/mmcblk1p2 b 179 34
 #   exit
